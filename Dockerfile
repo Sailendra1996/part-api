@@ -1,16 +1,38 @@
-# Use Java 17 to match your pom.xml (not 21)
-FROM eclipse-temurin:17-jdk-alpine
+# syntax=docker/dockerfile:1
 
-# Set working directory inside container
+# Step 1: Dependencies Stage
+FROM eclipse-temurin:21-jdk-jammy as deps
+WORKDIR /build
+COPY --chmod=0755 mvnw mvnw
+COPY .mvn/ .mvn/
+COPY pom.xml pom.xml
+RUN --mount=type=cache,target=/root/.m2 ./mvnw dependency:go-offline -B -DskipTests
+
+# Step 2: Build Stage
+FROM deps as builder
+WORKDIR /build
+COPY src/ src/
+RUN --mount=type=cache,target=/root/.m2 ./mvnw clean package -DskipTests \
+ && mv target/*.jar target/app.jar
+
+# Step 3: Extract Spring Boot layers
+FROM builder as extract
+WORKDIR /build
+RUN java -Djarmode=layertools -jar target/app.jar extract --destination target/extracted
+
+# Step 4: Production Run Image (Java 21)
+FROM eclipse-temurin:21-jre-jammy as final
+ARG UID=10001
+RUN adduser --disabled-password --uid $UID appuser
+USER appuser
 WORKDIR /app
 
-# Copy the Spring Boot executable JAR with correct artifact name
-COPY target/PartApi-0.0.1-SNAPSHOT.jar app.jar
+# Copy extracted layers
+COPY --from=extract /build/target/extracted/dependencies/ ./
+COPY --from=extract /build/target/extracted/snapshot-dependencies/ ./
+COPY --from=extract /build/target/extracted/spring-boot-loader/ ./
+COPY --from=extract /build/target/extracted/application/ ./
 
-# Expose the default port
-EXPOSE 8060
-# Set environment variable inside container
-ENV SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/auto_adda_parts?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
-
-# Run the app
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+EXPOSE 8080
+ENV SPRING_PROFILE=default
+ENTRYPOINT ["java", "-Dspring.profiles.active=${SPRING_PROFILE}", "org.springframework.boot.loader.launch.JarLauncher"]
