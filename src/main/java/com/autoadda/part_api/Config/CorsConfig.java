@@ -14,6 +14,7 @@ public class CorsConfig {
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**") // ✅ All endpoints
                         .allowedOrigins("http://localhost:5173") // ✅ Your frontend URL
+                        .allowedOrigins("https://api-test2025.netlify.app")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(true);
