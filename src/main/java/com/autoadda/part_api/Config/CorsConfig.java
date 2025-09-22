@@ -12,8 +12,8 @@ public class CorsConfig {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/**") // ✅ All endpoints
-                        .allowedOrigins("http://localhost:5173") // ✅ Your frontend URL
+                registry.addMapping("/**")
+                        .allowedOrigins("http://localhost:5173")
                         .allowedOrigins("https://api-test2025.netlify.app")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
